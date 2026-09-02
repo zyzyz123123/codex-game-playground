@@ -26,6 +26,21 @@ let previousTime = 0;
 let spawnTimer = 0;
 let nextSpawnAfter = 0.75;
 let animationFrame = 0;
+let backgroundTime = 0;
+
+const BEACH_COLORS = Object.freeze({
+  sky: "#fff1f2",
+  cloud: "#fffbeb",
+  sun: "#d97706",
+  sunset: "#fed7aa",
+  sea: "#0891b2",
+  wave: "#eff6ff",
+  waveShadow: "#2563eb",
+  shore: "#ecfdf3",
+  leaves: "#16a34a",
+  foam: "#bbf7d0",
+  silhouette: "#111827",
+});
 
 function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(value, maximum));
@@ -44,6 +59,7 @@ function resetGame() {
   caught = 0;
   spawnTimer = 0;
   nextSpawnAfter = 0.65;
+  backgroundTime = 0;
   updateHud("苹果要落下来了");
 }
 
@@ -70,6 +86,8 @@ function isAppleCaught(apple) {
 }
 
 function update(deltaTime) {
+  backgroundTime += deltaTime;
+
   const direction = Number(keys.right) - Number(keys.left);
   basket.x += direction * basket.speed * deltaTime;
   basket.x = clamp(basket.x, 18, WORLD_WIDTH - basket.width - 18);
@@ -148,57 +166,87 @@ function drawTree(x, y, scale, color) {
   ctx.restore();
 }
 
+function drawWaveLine(y, amplitude, speed, color, width) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.moveTo(-32, y);
+  for (let x = -32; x < WORLD_WIDTH + 32; x += 32) {
+    const nextX = x + 32;
+    const nextY = y + Math.sin((nextX * 0.028) + (backgroundTime * speed)) * amplitude;
+    ctx.quadraticCurveTo(x + 16, y - amplitude, nextX, nextY);
+  }
+  ctx.stroke();
+}
+
+function drawSeagull(x, y, scale = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.strokeStyle = BEACH_COLORS.silhouette;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(-7, 0, 7, Math.PI * 1.08, Math.PI * 1.92);
+  ctx.arc(7, 0, 7, Math.PI * 1.08, Math.PI * 1.92);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawBackground() {
-  const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
-  sky.addColorStop(0, "#76c8db");
-  sky.addColorStop(1, "#cce9d1");
-  ctx.fillStyle = sky;
+  const horizonY = 286;
+  const shoreY = 434;
+  const cloudDrift = (backgroundTime * 7) % (WORLD_WIDTH + 220);
+  const birdDrift = (backgroundTime * 16) % (WORLD_WIDTH + 180);
+
+  ctx.fillStyle = BEACH_COLORS.sky;
   ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-  ctx.fillStyle = "#f7b928";
-  ctx.strokeStyle = "#2d241d";
-  ctx.lineWidth = 4;
+  ctx.fillStyle = BEACH_COLORS.cloud;
+  ctx.fillRect(0, 204, WORLD_WIDTH, 82);
+
+  ctx.fillStyle = BEACH_COLORS.sun;
   ctx.beginPath();
-  ctx.arc(818, 86, 48, 0, Math.PI * 2);
+  ctx.arc(728, 222, 66, 0, Math.PI * 2);
   ctx.fill();
-  ctx.stroke();
 
-  drawCloud(120, 94, 0.9);
-  drawCloud(510, 66, 0.62);
+  drawCloud(cloudDrift - 160, 72, 0.55);
+  drawCloud(cloudDrift - 620, 124, 0.38);
+  drawSeagull(birdDrift - 120, 132, 0.9);
+  drawSeagull(birdDrift - 84, 151, 0.58);
 
-  ctx.fillStyle = "#579660";
+  ctx.fillStyle = BEACH_COLORS.sea;
+  ctx.fillRect(0, horizonY, WORLD_WIDTH, shoreY - horizonY);
+
+  ctx.fillStyle = BEACH_COLORS.silhouette;
   ctx.beginPath();
-  ctx.moveTo(0, 372);
-  ctx.quadraticCurveTo(165, 260, 338, 370);
-  ctx.quadraticCurveTo(545, 240, 735, 366);
-  ctx.quadraticCurveTo(860, 288, 960, 350);
-  ctx.lineTo(960, GROUND_Y);
-  ctx.lineTo(0, GROUND_Y);
+  ctx.moveTo(0, 326);
+  ctx.quadraticCurveTo(106, 248, 258, 319);
+  ctx.quadraticCurveTo(350, 272, 446, 318);
+  ctx.lineTo(446, horizonY + 52);
+  ctx.lineTo(0, horizonY + 52);
   ctx.closePath();
   ctx.fill();
 
-  drawTree(82, 304, 0.72, "#326f42");
-  drawTree(885, 298, 0.78, "#2c6c3e");
-  drawTree(717, 334, 0.48, "#438451");
-  drawTree(245, 338, 0.45, "#438451");
-
-  ctx.fillStyle = "#78a84e";
-  ctx.fillRect(0, GROUND_Y, WORLD_WIDTH, WORLD_HEIGHT - GROUND_Y);
-  ctx.strokeStyle = "#2d241d";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(0, GROUND_Y);
-  ctx.lineTo(WORLD_WIDTH, GROUND_Y);
-  ctx.stroke();
-
-  ctx.strokeStyle = "rgba(45, 36, 29, 0.38)";
-  ctx.lineWidth = 2;
-  for (let x = 12; x < WORLD_WIDTH; x += 26) {
-    ctx.beginPath();
-    ctx.moveTo(x, WORLD_HEIGHT);
-    ctx.lineTo(x + 12, GROUND_Y + 8);
-    ctx.stroke();
+  ctx.fillStyle = BEACH_COLORS.sunset;
+  for (let index = 0; index < 5; index += 1) {
+    const width = 38 + index * 22;
+    const y = 294 + index * 25;
+    const offset = Math.sin((backgroundTime * 1.8) + index) * 8;
+    ctx.fillRect(728 - (width / 2) + offset, y, width, 5);
   }
+
+  drawWaveLine(316, 4, 1.25, BEACH_COLORS.wave, 3);
+  drawWaveLine(360, 6, 1.65, BEACH_COLORS.waveShadow, 4);
+  drawWaveLine(403, 5, 1.4, BEACH_COLORS.wave, 3);
+
+  ctx.fillStyle = BEACH_COLORS.shore;
+  ctx.fillRect(0, shoreY, WORLD_WIDTH, WORLD_HEIGHT - shoreY);
+  drawWaveLine(shoreY + 2, 4, 2.1, BEACH_COLORS.foam, 4);
+
+  drawTree(48, 320, 0.84, BEACH_COLORS.leaves);
+  drawTree(908, 306, 0.96, BEACH_COLORS.leaves);
+  drawTree(756, 354, 0.48, BEACH_COLORS.leaves);
+  drawTree(224, 360, 0.42, BEACH_COLORS.leaves);
 }
 
 function drawApple(apple) {

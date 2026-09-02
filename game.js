@@ -19,7 +19,7 @@ const basket = {
 };
 
 const keys = { left: false, right: false };
-let apples = [];
+let fruits = [];
 let score = 0;
 let caught = 0;
 let previousTime = 0;
@@ -54,18 +54,21 @@ function updateHud(message) {
 
 function resetGame() {
   basket.x = WORLD_WIDTH / 2 - basket.width / 2;
-  apples = [];
+  fruits = [];
   score = 0;
   caught = 0;
   spawnTimer = 0;
   nextSpawnAfter = 0.65;
   backgroundTime = 0;
-  updateHud("苹果要落下来了");
+  updateHud("水果要落下来了");
 }
 
-function spawnApple() {
-  const radius = 19 + Math.random() * 5;
-  apples.push({
+function spawnFruit() {
+  const isOrange = Math.random() < 0.3;
+  const radius = isOrange ? 18 + Math.random() * 3 : 19 + Math.random() * 5;
+  fruits.push({
+    type: isOrange ? "orange" : "apple",
+    points: isOrange ? 5 : 10,
     x: 50 + Math.random() * (WORLD_WIDTH - 100),
     y: -radius - 8,
     radius,
@@ -75,13 +78,13 @@ function spawnApple() {
   nextSpawnAfter = 0.78 + Math.random() * 0.42;
 }
 
-function isAppleCaught(apple) {
+function isFruitCaught(fruit) {
   const basketTop = basket.y + 4;
   return (
-    apple.y + apple.radius >= basketTop &&
-    apple.y - apple.radius <= basket.y + basket.height &&
-    apple.x + apple.radius * 0.65 >= basket.x &&
-    apple.x - apple.radius * 0.65 <= basket.x + basket.width
+    fruit.y + fruit.radius >= basketTop &&
+    fruit.y - fruit.radius <= basket.y + basket.height &&
+    fruit.x + fruit.radius * 0.65 >= basket.x &&
+    fruit.x - fruit.radius * 0.65 <= basket.x + basket.width
   );
 }
 
@@ -96,27 +99,31 @@ function update(deltaTime) {
   spawnTimer += deltaTime;
   if (spawnTimer >= nextSpawnAfter) {
     spawnTimer = 0;
-    spawnApple();
+    spawnFruit();
   }
 
-  apples.forEach((apple) => {
-    apple.y += apple.speed * deltaTime;
-    apple.wobble += deltaTime * 2.2;
+  fruits.forEach((fruit) => {
+    fruit.y += fruit.speed * deltaTime;
+    fruit.wobble += deltaTime * 2.2;
   });
 
-  const remainingApples = [];
-  for (const apple of apples) {
-    if (isAppleCaught(apple)) {
-      score += 10;
+  const remainingFruits = [];
+  for (const fruit of fruits) {
+    if (isFruitCaught(fruit)) {
+      score += fruit.points;
       caught += 1;
-      updateHud(caught % 5 === 0 ? "漂亮！继续保持" : "接到了，+10 分");
-    } else if (apple.y - apple.radius > WORLD_HEIGHT) {
+      if (fruit.type === "orange") {
+        updateHud("接到橘子，+5 分");
+      } else {
+        updateHud(caught % 5 === 0 ? "漂亮！继续保持" : "接到了，+10 分");
+      }
+    } else if (fruit.y - fruit.radius > WORLD_HEIGHT) {
       updateHud("差一点，再接一个");
     } else {
-      remainingApples.push(apple);
+      remainingFruits.push(fruit);
     }
   }
-  apples = remainingApples;
+  fruits = remainingFruits;
 }
 
 function roundedRect(x, y, width, height, radius) {
@@ -285,6 +292,40 @@ function drawApple(apple) {
   ctx.restore();
 }
 
+function drawOrange(orange) {
+  const wobbleX = Math.sin(orange.wobble) * 2;
+  ctx.save();
+  ctx.translate(orange.x + wobbleX, orange.y);
+  ctx.strokeStyle = BEACH_COLORS.silhouette;
+  ctx.lineWidth = 3;
+
+  ctx.fillStyle = BEACH_COLORS.sun;
+  ctx.beginPath();
+  ctx.arc(0, 2, orange.radius * 0.84, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = BEACH_COLORS.sunset;
+  ctx.beginPath();
+  ctx.ellipse(-orange.radius * 0.25, -orange.radius * 0.2, 3, 5, 0.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = BEACH_COLORS.leaves;
+  ctx.beginPath();
+  ctx.ellipse(8, -orange.radius * 0.9, 8, 4, -0.45, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawFruit(fruit) {
+  if (fruit.type === "orange") {
+    drawOrange(fruit);
+    return;
+  }
+  drawApple(fruit);
+}
+
 function drawBasket() {
   ctx.save();
   ctx.translate(basket.x, basket.y);
@@ -325,7 +366,7 @@ function drawBasket() {
 
 function draw() {
   drawBackground();
-  apples.forEach(drawApple);
+  fruits.forEach(drawFruit);
   drawBasket();
 }
 
